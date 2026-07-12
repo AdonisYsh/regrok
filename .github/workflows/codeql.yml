@@ -1,0 +1,30 @@
+# GitHub-native static analysis. Free for public repos.
+# One-time setup: repo Settings → Code security → enable Code scanning.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "31 7 * * 3" # weekly, Wednesday
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+          queries: security-extended
+          # vendor/ is third-party bundled code; findings there aren't actionable here
+          config: |
+            paths-ignore:
+              - vendor
+      - uses: github/codeql-action/analyze@v3

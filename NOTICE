@@ -1,0 +1,6 @@
+This project bundles:
+- Grok patterns from logstash-plugins/logstash-patterns-core
+  (https://github.com/logstash-plugins/logstash-patterns-core), Apache License 2.0,
+  Copyright Elasticsearch B.V. — bundled in vendor/patterns.js
+- vscode-oniguruma (https://github.com/microsoft/vscode-oniguruma), MIT License,
+  Copyright (c) Microsoft Corporation — bundled as vendor/onig.js and vendor/onig.wasm

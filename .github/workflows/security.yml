@@ -1,0 +1,68 @@
+# Security scans for a no-build-step vanilla JS static site.
+# Four independent jobs so one failure doesn't hide the others:
+#   npm-audit — known CVEs in (dev)dependencies
+#   trivy     — filesystem scan: vulns + misconfig + secrets
+#   semgrep   — static analysis (javascript + OWASP Top Ten rulesets)
+#   gitleaks  — committed secrets, full git history
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1" # weekly, Monday 06:17 UTC — catches newly published CVEs
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No lockfile is committed (no build step); generate one so audit can run.
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: npm audit --audit-level=high
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # vendor/ is third-party minified/generated code — scan our code, not Microsoft's bundle
+      - run: >
+          semgrep scan
+          --config p/javascript
+          --config p/owasp-top-ten
+          --exclude vendor
+          --error
+          --metrics=off
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history — a secret deleted in a later commit is still leaked
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

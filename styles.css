@@ -1,0 +1,266 @@
+/* regrok — 2 AM on-call workbench.
+   Palette: deep blue-slate night, amber (WARN) accent, ERROR red for misses.
+   Signature: each named field owns a hue, identical in the match bench and
+   the results tables. Color IS the field. */
+
+:root {
+  --bg: #0f131a;
+  --panel: #151b25;
+  --raised: #1b2331;
+  --border: #2a3446;
+  --border-soft: #222b3b;
+  --ink: #dce3ee;
+  --muted: #8a96ab;
+  --faint: #5d6981;
+  --amber: #e8b04c;
+  --amber-ink: #1a1204;
+  --error: #e0655f;
+  --ok: #71c091;
+  --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+a { color: var(--amber); }
+
+/* ---------- header ---------- */
+.top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 18px 22px 6px;
+}
+.brand { display: flex; align-items: baseline; gap: 2px; }
+.brand h1 {
+  margin: 0; font-family: var(--mono); font-size: 26px; font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.brand-mark { font-family: var(--mono); font-size: 26px; color: var(--amber); font-weight: 700; }
+.tagline { margin: 0 0 0 14px; color: var(--muted); font-size: 13px; }
+.privacy-pill {
+  font-family: var(--mono); font-size: 12px; color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+  padding: 4px 10px; border-radius: 999px;
+}
+
+/* ---------- layout ---------- */
+.bench {
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px; padding: 12px 22px 40px; align-items: start;
+}
+.work, .rail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 980px) {
+  .bench { grid-template-columns: 1fr; }
+}
+
+/* ---------- panels ---------- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 12px 14px 14px;
+}
+.panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 8px; flex-wrap: wrap;
+}
+.eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted);
+}
+.hint { font-size: 12px; color: var(--faint); font-family: var(--mono); }
+.fine { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.fine code { font-family: var(--mono); color: var(--ink); }
+
+/* ---------- inputs ---------- */
+textarea, input[type="search"], input[type="text"], input[type="password"], select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+textarea:focus, input:focus, select:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+#pattern { min-height: 46px; }
+
+/* ---------- status bar ---------- */
+.statusbar {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 8px; font-family: var(--mono); font-size: 12px; flex-wrap: wrap;
+}
+.status-chip { color: var(--muted); }
+.status-chip.is-ok { color: var(--ok); }
+.status-chip.is-partial { color: var(--amber); }
+.status-chip.is-none { color: var(--error); }
+.status-dim { color: var(--faint); }
+.linkish {
+  background: none; border: none; color: var(--amber); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; padding: 0;
+  text-decoration: underline dotted;
+}
+.expanded-regex {
+  margin: 8px 0 0; padding: 10px; background: var(--bg);
+  border: 1px solid var(--border-soft); border-radius: 6px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow: auto;
+}
+.pattern-error {
+  margin-top: 8px; padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--error) 45%, transparent);
+  background: color-mix(in srgb, var(--error) 9%, transparent);
+  border-radius: 6px; color: #f1a49f; font-family: var(--mono); font-size: 12.5px;
+}
+
+/* ---------- match bench (signature) ---------- */
+/* Capped like the textareas: hundreds of pasted lines scroll inside the
+   panel instead of stretching the page to eternity. */
+.bench-lines {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 45vh; overflow-y: auto; overscroll-behavior: contain;
+}
+.bench-line {
+  font-family: var(--mono); font-size: 13px; line-height: 1.85;
+  padding: 3px 10px 3px 12px; border-left: 3px solid transparent;
+  border-radius: 4px; white-space: pre-wrap; word-break: break-all;
+}
+.bench-line.is-hit { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 4%, transparent); }
+.bench-line.is-miss { border-left-color: var(--error); background: color-mix(in srgb, var(--error) 5%, transparent); color: var(--muted); }
+.bench-line.is-miss::after { content: "  ⟵ no match"; color: var(--error); font-size: 11px; }
+.cap {
+  border-radius: 4px; padding: 1px 2px; margin: 0 1px;
+  background: color-mix(in srgb, var(--cap-color) 22%, transparent);
+  box-shadow: inset 0 -2px 0 var(--cap-color);
+  cursor: default; transition: background 120ms ease;
+}
+.cap:hover, .cap.is-hot {
+  background: color-mix(in srgb, var(--cap-color) 45%, transparent);
+}
+.empty-state { color: var(--faint); font-size: 13px; padding: 8px 4px; }
+
+/* ---------- results ---------- */
+.results {
+  display: flex; flex-direction: column; gap: 14px;
+  max-height: 55vh; overflow-y: auto; overscroll-behavior: contain;
+}
+.result-block h3 {
+  margin: 0 0 6px; font-family: var(--mono); font-size: 12px;
+  font-weight: 600; color: var(--faint);
+}
+.result-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+.result-table td {
+  padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border-soft);
+  vertical-align: top; word-break: break-all;
+}
+.result-table td.f { white-space: nowrap; color: var(--muted); word-break: normal; }
+.result-table tr.is-hot td { background: var(--raised); }
+.dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+  background: var(--cap-color); margin-right: 7px; vertical-align: baseline;
+}
+.type-tag { color: var(--faint); font-size: 10.5px; margin-left: 6px; }
+.json-view {
+  margin: 0; font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--border-soft); border-radius: 6px;
+  padding: 10px; white-space: pre-wrap; word-break: break-all;
+}
+
+/* ---------- segmented control ---------- */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg-btn {
+  background: transparent; color: var(--muted); border: none;
+  font-family: var(--mono); font-size: 12px; padding: 4px 12px; cursor: pointer;
+}
+.seg-btn.is-on { background: var(--amber); color: var(--amber-ink); font-weight: 600; }
+
+/* ---------- buttons ---------- */
+.btn-primary {
+  background: var(--amber); color: var(--amber-ink); border: none;
+  border-radius: 6px; font-family: var(--mono); font-size: 13px; font-weight: 700;
+  padding: 9px 14px; cursor: pointer; width: 100%;
+}
+.btn-primary:hover { filter: brightness(1.07); }
+.btn-quiet {
+  background: var(--raised); color: var(--muted); border: 1px solid var(--border);
+  border-radius: 6px; font-family: var(--mono); font-size: 12px;
+  padding: 5px 10px; cursor: pointer; display: inline-block;
+}
+.btn-quiet:hover { color: var(--ink); }
+.row-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ---------- pattern library ---------- */
+.lib-list {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  max-height: 300px; overflow: auto; border-top: 1px solid var(--border-soft);
+}
+.lib-list li {
+  padding: 6px 4px; border-bottom: 1px solid var(--border-soft); cursor: pointer;
+}
+.lib-list li:hover { background: var(--raised); }
+.lib-name { font-family: var(--mono); font-size: 12.5px; color: var(--amber); }
+.lib-src { font-size: 10.5px; color: var(--faint); margin-left: 8px; }
+.lib-def {
+  font-family: var(--mono); font-size: 11px; color: var(--faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+}
+
+/* ---------- AI panel ---------- */
+.ai-panel details { margin-top: 12px; }
+.ai-panel summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.chat-config { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.chat-log { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; max-height: 320px; overflow: auto; }
+.chat-msg { border-radius: 6px; padding: 8px 10px; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+.chat-msg.user { background: var(--raised); border: 1px solid var(--border); }
+.chat-msg.ai { background: var(--bg); border: 1px solid var(--border-soft); }
+.chat-msg pre {
+  background: #0a0d13; border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px; overflow: auto; font-size: 12px; font-family: var(--mono);
+}
+.apply-btn {
+  margin-top: 4px; background: none; border: 1px solid var(--amber);
+  color: var(--amber); border-radius: 5px; font-family: var(--mono);
+  font-size: 11.5px; padding: 3px 9px; cursor: pointer;
+}
+.apply-btn:hover { background: var(--amber); color: var(--amber-ink); }
+.chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+.chat-input-row textarea { flex: 1; }
+.chat-input-row .btn-primary { width: auto; }
+
+.credits { font-size: 11.5px; color: var(--faint); padding: 0 4px; }
+.credits a { color: var(--muted); }
+
+/* copied! feedback */
+.btn-primary.copied { background: var(--ok); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---------- partial-match diagnosis ---------- */
+.bench-line.has-diag { line-height: 1.9; }
+.diag-ok {
+  background: color-mix(in srgb, var(--amber) 16%, transparent);
+  box-shadow: inset 0 -2px 0 var(--amber);
+  border-radius: 3px;
+}
+.bench-line.is-miss.has-diag::after { content: none; } /* replaced by .diag-note */
+.diag-note {
+  display: block; color: var(--error); font-size: 11px; line-height: 1.4;
+  margin-top: 1px; word-break: break-word;
+}

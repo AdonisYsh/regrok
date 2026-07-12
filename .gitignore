@@ -1,0 +1,18 @@
+# dependencies (dev only; rebuilt with npm install)
+node_modules/
+
+# pattern-source working directory (not shipped)
+patterns-src/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# safety net: local secrets must never be committed
+.env
+.env.*
+
+# local editor/tool state
+.claude/settings.local.json
+*.log
