@@ -1,0 +1,13 @@
+{
+  "name": "regrok — grok & dissect debugger",
+  "short_name": "regrok",
+  "description": "Fast, private, offline-capable Grok and Dissect pattern debugger. Same Oniguruma regex engine as Logstash.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f131a",
+  "theme_color": "#0f131a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!--
+  CSP: GitHub Pages can't set response headers, so this meta tag is the policy.
+  connect-src lists every AI endpoint the built-in chat can reach, plus
+  localhost for Ollama. Add hosts here if you use a different OpenAI-compatible
+  base URL. (frame-ancestors/sandbox can't be set via <meta>; accept that on Pages.)
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.anthropic.com https://generativelanguage.googleapis.com https://api.openai.com https://openrouter.ai https://api.groq.com http://localhost:* http://127.0.0.1:*; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>regrok — a grok debugger that keeps up</title>
+<meta name="description" content="A fast, private, 100% in-browser Grok pattern debugger. Same Oniguruma regex engine as Logstash. Your logs never leave your machine.">
+<link rel="stylesheet" href="styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f131a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>⚙️</text></svg>">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="brand-mark">%{</span><h1>regrok</h1><span class="brand-mark">}</span>
+    <p class="tagline">a grok debugger that keeps up</p>
+  </div>
+  <div class="top-right">
+    <span class="privacy-pill" title="All matching runs in your browser via WebAssembly. Nothing is uploaded anywhere.">⛨ runs locally — logs never leave this tab</span>
+  </div>
+</header>
+
+<main class="bench">
+
+  <!-- ============ left column: the workbench ============ -->
+  <section class="work">
+
+    <div class="panel">
+      <div class="panel-head">
+        <label class="eyebrow" for="samples">Sample log lines</label>
+      </div>
+      <textarea id="samples" spellcheck="false" rows="5"
+        placeholder="Paste log lines here…"></textarea>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <label class="eyebrow" for="pattern" id="pattern-label">Pattern</label>
+        <div class="seg" role="tablist" aria-label="Engine">
+          <button class="seg-btn is-on" data-engine="grok" type="button">grok</button>
+          <button class="seg-btn" data-engine="dissect" type="button">dissect</button>
+        </div>
+        <span class="hint" id="pattern-hint">%{PATTERN:field:type} · type is int or float</span>
+        <button class="linkish" id="copy-pattern" type="button">copy pattern</button>
+      </div>
+      <textarea id="pattern" spellcheck="false" rows="2"
+        placeholder="%{IPORHOST:client_ip} %{WORD:method} %{URIPATH:path}"></textarea>
+      <div class="statusbar" id="statusbar">
+        <span id="status-match" class="status-chip">–</span>
+        <span id="status-timing" class="status-dim"></span>
+        <button class="linkish" id="toggle-regex" type="button" hidden>view expanded regex</button>
+      </div>
+      <pre id="expanded-regex" class="expanded-regex" hidden></pre>
+      <div id="pattern-error" class="pattern-error" hidden></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="eyebrow">Match bench</span>
+        <span class="hint">hover a colored span to see its field</span>
+      </div>
+      <div id="bench-lines" class="bench-lines">
+        <div class="empty-state">Paste sample lines and a pattern above — matches light up here, live.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="eyebrow">Extracted fields</span>
+        <button class="linkish" id="copy-json" type="button">copy json</button>
+        <div class="seg" role="tablist" aria-label="Results view">
+          <button class="seg-btn is-on" data-view="table" type="button">table</button>
+          <button class="seg-btn" data-view="json" type="button">json</button>
+        </div>
+      </div>
+      <div id="results" class="results"></div>
+    </div>
+
+  </section>
+
+  <!-- ============ right column: patterns & AI ============ -->
+  <aside class="rail">
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="eyebrow">Pattern set</span>
+        <div class="seg" role="tablist" aria-label="Pattern set">
+          <button class="seg-btn is-on" data-set="ecs-v1" type="button">ECS v1</button>
+          <button class="seg-btn" data-set="legacy" type="button">legacy</button>
+        </div>
+      </div>
+      <p class="fine">ECS v1 names fields like <code>[source][ip]</code>; legacy uses the old flat names. Same sets Logstash ships.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <label class="eyebrow" for="custom">Custom patterns</label>
+        <span class="hint">NAME regex — one per line</span>
+      </div>
+      <textarea id="custom" spellcheck="false" rows="4"
+        placeholder="ORDERID ORD-[0-9]{6}&#10;# comments allowed"></textarea>
+      <div class="row-actions">
+        <button class="btn-quiet" id="custom-export" type="button">export file</button>
+        <label class="btn-quiet" for="custom-import">import file<input id="custom-import" type="file" accept=".txt,.conf,.grok,text/plain" hidden></label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <label class="eyebrow" for="lib-search">Pattern library</label>
+        <span class="hint" id="lib-count"></span>
+      </div>
+      <input id="lib-search" type="search" placeholder="search 300+ patterns… (e.g. ip, time, apache)" autocomplete="off">
+      <ul id="lib-list" class="lib-list"></ul>
+    </div>
+
+    <div class="panel ai-panel">
+      <div class="panel-head">
+        <span class="eyebrow">AI assist</span>
+        <span class="hint">bring your own key · optional</span>
+      </div>
+
+      <button class="btn-primary" id="copy-prompt" type="button">Copy prompt for any AI</button>
+      <p class="fine">Copies a precision-engineered prompt with your sample lines, current pattern and custom patterns baked in. Paste it into any chatbot. <strong>Review lines for sensitive values first — redact anything private.</strong></p>
+
+      <details id="chat-details">
+        <summary>Built-in chat (uses your API key, called directly from your browser)</summary>
+        <div class="chat-config">
+          <select id="ai-provider" aria-label="AI provider">
+            <option value="gemini">Google Gemini (free tier)</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="openai">OpenAI-compatible (OpenRouter, Groq, Ollama…)</option>
+          </select>
+          <input id="ai-key" type="password" placeholder="API key" autocomplete="off">
+          <input id="ai-model" type="text" placeholder="model (blank = sensible default)" autocomplete="off">
+          <input id="ai-base" type="text" placeholder="base URL (OpenAI-compatible only)" autocomplete="off" hidden>
+          <p class="fine">Key is kept in this browser's localStorage only and sent straight to the provider — never to any server of ours (there isn't one). <button class="linkish" id="ai-forget" type="button">forget key</button></p>
+        </div>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" rows="2" placeholder="e.g. Write a grok pattern for my sample lines"></textarea>
+          <button class="btn-primary" id="chat-send" type="button">Send</button>
+        </div>
+      </details>
+    </div>
+
+    <footer class="credits">
+      <p id="offline-note" hidden>⛨ cached for offline use — this page now works without internet.</p>
+      <p>Engine: <a href="https://github.com/microsoft/vscode-oniguruma" rel="noopener" target="_blank">vscode-oniguruma</a> (same regex family as Logstash grok). Patterns: <a href="https://github.com/logstash-plugins/logstash-patterns-core" rel="noopener" target="_blank">logstash-patterns-core</a>, Apache-2.0.</p>
+    </footer>
+  </aside>
+
+</main>
+
+<script src="vendor/patterns.js"></script>
+<script src="ai.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

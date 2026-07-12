@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # Dev dependency (vscode-oniguruma, used only by Node tests) + any future deps
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # wait 7 days before adopting newly published versions — dodges the window
+    # where a malicious/broken release is published and then yanked
+    cooldown:
+      default-days: 7
+    # bundle all npm updates into a single PR instead of one PR per package
+    groups:
+      npm-deps:
+        patterns: ["*"]
+
+  # Keep GitHub Actions in the workflows up to date
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions-deps:
+        patterns: ["*"]

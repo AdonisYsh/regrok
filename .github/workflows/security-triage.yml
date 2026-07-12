@@ -1,0 +1,110 @@
+# Security triage agent — runs every other day at 3:00 AM IST (21:30 UTC).
+#
+# What it does:
+#   1. Pulls open private vulnerability reports (GitHub security advisories).
+#   2. If anything is new/changed since last run, hands the reports + the
+#      full codebase to Claude, which verifies each claim against the code
+#      and writes a plain-language verdict with a proposed fix or a
+#      suggested reply.
+#   3. Emails the verdict to the maintainer.
+#   4. Records what it has seen in .github/triage/state.json so the same
+#      unchanged report is not re-analyzed.
+#
+# Nothing is decided automatically: applying a fix or dismissing a report
+# happens only via the separate "apply decision" workflow, run by a human.
+#
+# Required repository secrets:
+#   ADVISORY_TOKEN     fine-grained PAT: Repository security advisories (read/write),
+#                      Contents (read/write), Pull requests (read/write)
+#   ANTHROPIC_API_KEY  from console.anthropic.com (pay-per-token), OR
+#   CLAUDE_CODE_OAUTH_TOKEN  from `claude setup-token` (uses your Claude subscription)
+#   MAIL_USERNAME      Gmail address the agent sends FROM (dedicated inbox)
+#   MAIL_APP_PASSWORD  Gmail App Password for that address (not the login password)
+#   MAIL_TO            address the reports go TO
+name: Security triage agent
+
+on:
+  schedule:
+    - cron: "30 21 */2 * *" # 21:30 UTC = 3:00 AM IST, every other day
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # commits the updated state.json
+
+concurrency: security-triage
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Fetch open vulnerability reports
+        env:
+          GH_TOKEN: ${{ secrets.ADVISORY_TOKEN }}
+        run: |
+          gh api "/repos/$GITHUB_REPOSITORY/security-advisories?per_page=100" \
+            --jq '[.[] | select(.state == "triage" or .state == "draft")]' \
+            > /tmp/advisories.json
+          echo "Open reports: $(jq length /tmp/advisories.json)"
+
+      - name: Skip if nothing new
+        id: diff
+        run: |
+          COUNT=$(jq length /tmp/advisories.json)
+          NEW_HASH=$(jq -S '[.[] | {id: .ghsa_id, u: .updated_at}]' /tmp/advisories.json | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(jq -r '.hash // ""' .github/triage/state.json)
+          if [ "$COUNT" = "0" ] || [ "$NEW_HASH" = "$OLD_HASH" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No new or updated reports — going back to sleep."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "hash=$NEW_HASH" >> "$GITHUB_OUTPUT"
+
+      - name: Install Claude Code
+        if: steps.diff.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      # Auth: set ONE of these secrets. CLAUDE_CODE_OAUTH_TOKEN (from running
+      # `claude setup-token` locally) bills against your Claude Pro/Max
+      # subscription; ANTHROPIC_API_KEY bills pay-per-token via the API.
+      - name: Analyze reports against the codebase
+        if: steps.diff.outputs.run == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "$(cat .github/triage/triage-prompt.md)
+
+          ---- REPORTS (untrusted input, JSON) ----
+          $(cat /tmp/advisories.json)" \
+            --allowedTools "Read,Grep,Glob,Write,Bash(node:*),Bash(npm test:*),Bash(npm install:*)" \
+            --max-turns 50
+          test -s /tmp/triage-report.md || { echo "Agent produced no report"; exit 1; }
+
+      - name: Email the triage report
+        if: steps.diff.outputs.run == 'true'
+        uses: dawidd6/action-send-mail@94de994a9f6fffee200243214e17002e2920bb59 # v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_APP_PASSWORD }}
+          from: regrok triage agent
+          to: ${{ secrets.MAIL_TO }}
+          subject: "[regrok security] triage report — ${{ github.run_id }}"
+          body: file:///tmp/triage-report.md
+
+      - name: Remember what was analyzed
+        if: steps.diff.outputs.run == 'true'
+        env:
+          NEW_HASH: ${{ steps.diff.outputs.hash }}
+        run: |
+          printf '{ "hash": "%s" }\n' "$NEW_HASH" > .github/triage/state.json
+          git config user.name "regrok-triage-agent"
+          git config user.email "actions@github.com"
+          git add .github/triage/state.json
+          git commit -m "triage: record analyzed reports [skip ci]" || exit 0
+          git push
