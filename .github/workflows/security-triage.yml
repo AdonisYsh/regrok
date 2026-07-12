@@ -92,7 +92,7 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_APP_PASSWORD }}
-          from: regrok triage agent
+          from: regrok triage agent <${{ secrets.MAIL_USERNAME }}>
           to: ${{ secrets.MAIL_TO }}
           subject: "[regrok security] triage report — ${{ github.run_id }}"
           body: file:///tmp/triage-report.md
