@@ -5,11 +5,15 @@
 [![Deploy](https://github.com/AdonisYsh/regrok/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/AdonisYsh/regrok/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**A grok & dissect debugger that keeps up.** 100% in-browser, works offline, private by construction — running the same regex engine family as real Logstash.
+**See exactly where your grok pattern breaks.**
 
-Paste log lines, type a pattern, and watch every line light up live. Each extracted field gets its own color, identical in the highlighted log line and the results table. Lines that *don't* match tell you exactly where they broke.
+### ▶ [Try it live](https://adonisysh.github.io/regrok/) — no install, works offline
 
-**Try it:** deploy to GitHub Pages in two clicks (below), or run locally with one command.
+Paste log lines, type a grok or dissect pattern, and every field lights up live, each in its own color. When a line doesn't match, regrok shows how far the pattern got and which piece broke, instead of a silent "no match".
+
+Runs 100% in your browser with the same regex engine family as Logstash. Your logs never leave your machine.
+
+Open the live link — it comes loaded with example logs and patterns, so you can see it working in one click.
 
 ## Features
 
@@ -53,11 +57,12 @@ python3 -m http.server 8000        # or: npx serve .
 
 > Don't open `index.html` via `file://` — browsers block Web Workers and WASM on the file protocol.
 
-**GitHub Pages** — free hosting straight from the repo:
+**GitHub Pages** — host your own copy:
 
-1. Push this repo to GitHub.
-2. Repo **Settings → Pages → Source: GitHub Actions**.
-3. Push to `main` — the included workflow (`.github/workflows/deploy-pages.yml`) deploys automatically. Visit the site once and it's cached for offline use forever after.
+1. Fork this repo.
+2. In the fork's **Actions** tab, enable workflows (disabled on forks by default).
+3. **Settings → Pages → Source: GitHub Actions**.
+4. Push any commit to `main`. The included workflow deploys it to `https://<you>.github.io/regrok/`, cached for offline use after the first visit.
 
 ## AI provider suggestions
 
